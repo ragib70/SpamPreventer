@@ -58,7 +58,7 @@ contract SpamPreventer{
         
         require(conversationGraph[_sender][msg.sender].processed == false, "Sender is already processed.");
 
-        if(conversationGraph[_sender][msg.sender].timestamp.add(86400) <= block.timestamp){
+        if(conversationGraph[_sender][msg.sender].timestamp.add(86400) >= block.timestamp){
             (bool success, ) = msg.sender.call{value: conversationGraph[_sender][msg.sender].amountDeposited}("");
             require(success, "Failed to send Ether");
         }
@@ -67,17 +67,20 @@ contract SpamPreventer{
         conversationGraph[_sender][msg.sender].spam = true;
         conversationGraph[_sender][msg.sender].processed = true;
 
+        conversationGraph[msg.sender][_sender].spam = true;
+        conversationGraph[msg.sender][_sender].processed = true;
     }
 
     function canSendMessage(address _receiver) external view returns(bool status){
-        status = conversationGraph[msg.sender][_receiver].spam;
+
+        status = !conversationGraph[msg.sender][_receiver].spam;
     }
 
     function setApproval(address payable _sender) external {
         
         require(conversationGraph[_sender][msg.sender].processed == false, "Sender is already processed.");
 
-        if(conversationGraph[_sender][msg.sender].timestamp.add(86400) <= block.timestamp){
+        if(conversationGraph[_sender][msg.sender].timestamp.add(86400) >= block.timestamp){
             (bool success, ) = _sender.call{value: conversationGraph[_sender][msg.sender].amountDeposited}("");
             require(success, "Failed to send Ether");
         }
@@ -86,14 +89,30 @@ contract SpamPreventer{
         conversationGraph[_sender][msg.sender].processed = true;
     }
 
-    function unblock(address payable _sender) external payable{
+    function undeclareSpam(address payable _sender) external payable{// Called by receiver
 
         require(conversationGraph[_sender][msg.sender].processed == true, "Sender should be already processed, meaning it should be blocked");
         require(conversationGraph[_sender][msg.sender].spam == true, "Sender is already approved and unblocked, no need to call unblock further.");
 
-        _sender.transfer(conversationGraph[_sender][msg.sender].amountDeposited);
+        (bool success, ) = _sender.call{value: conversationGraph[_sender][msg.sender].amountDeposited}("");
+        require(success, "Failed to send Ether");
 
+        spCounter[_sender].decrement();
         conversationGraph[_sender][msg.sender].spam = false;
-        
+        conversationGraph[msg.sender][_sender].spam = false;
+    }
+
+    function blockContact(address _addrToBlock) external{
+
+        conversationGraph[msg.sender][_addrToBlock].spam = true;
+        conversationGraph[_addrToBlock][msg.sender].spam = true;
+
+    }
+
+    function unblockContact(address _addrToUnblock) external{
+
+        conversationGraph[msg.sender][_addrToUnblock].spam = false;
+        conversationGraph[_addrToUnblock][msg.sender].spam = false;
+
     }
 }
