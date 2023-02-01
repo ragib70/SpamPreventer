@@ -27,10 +27,21 @@ contract SpamPreventer{
     uint256 public baseSPAmount;
     mapping (address => mapping(address => receiver)) public conversationGraph;
     mapping (address => Counters.Counter) public spCounter;
+    mapping (address => address[]) public spamAddresses;
+    mapping (address => address[]) public chatRequestAddresses;
 
     // Constructor.
     constructor(uint256 amount) {// 1e16 = 0.01 matic
         baseSPAmount = amount;
+    }
+
+
+    function getAllSpamAddresses() public view returns (address[] memory) {
+        return spamAddresses[msg.sender];
+    }
+
+    function getChatRequestAdresses() public view returns (address[] memory) {
+        return chatRequestAddresses[msg.sender];
     }
 
     // Functions
@@ -43,6 +54,8 @@ contract SpamPreventer{
         conversationGraph[msg.sender][_receiver].timestamp = block.timestamp;
         conversationGraph[msg.sender][_receiver].spam = false;
         conversationGraph[msg.sender][_receiver].processed = false;
+
+        chatRequestAddresses[msg.sender].push(_receiver);
 
         // Add event transfered happened.
     }
@@ -69,6 +82,8 @@ contract SpamPreventer{
 
         conversationGraph[msg.sender][_sender].spam = true;
         conversationGraph[msg.sender][_sender].processed = true;
+
+        spamAddresses[msg.sender].push(_sender);
     }
 
     function canSendMessage(address _receiver) external view returns(bool status){
@@ -100,6 +115,18 @@ contract SpamPreventer{
         spCounter[_sender].decrement();
         conversationGraph[_sender][msg.sender].spam = false;
         conversationGraph[msg.sender][_sender].spam = false;
+
+        uint256 i = 0;
+        
+        for(i=0; i<spamAddresses[msg.sender].length; i++){
+            if(spamAddresses[msg.sender][i] == _sender){
+                break;
+            }
+        }
+
+        spamAddresses[msg.sender][i] = spamAddresses[msg.sender][i];
+        spamAddresses[msg.sender].pop();
+
     }
 
     function blockContact(address _addrToBlock) external{
