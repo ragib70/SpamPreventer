@@ -102,6 +102,17 @@ contract SpamPreventer{
 
         conversationGraph[_sender][msg.sender].spam = false;
         conversationGraph[_sender][msg.sender].processed = true;
+
+        uint256 i = 0;
+        
+        for(i=0; i<chatRequestAddresses[_sender].length; i++){
+            if(chatRequestAddresses[_sender][i] == msg.sender){
+                break;
+            }
+        }
+
+        chatRequestAddresses[_sender][i] = chatRequestAddresses[_sender][chatRequestAddresses[_sender].length - 1];
+        chatRequestAddresses[_sender].pop();
     }
 
     function undeclareSpam(address payable _sender) external payable{// Called by receiver
@@ -124,8 +135,19 @@ contract SpamPreventer{
             }
         }
 
-        spamAddresses[msg.sender][i] = spamAddresses[msg.sender][i];
+        spamAddresses[msg.sender][i] = spamAddresses[msg.sender][spamAddresses[msg.sender].length-1];
         spamAddresses[msg.sender].pop();
+
+        i = 0;
+        
+        for(i=0; i<chatRequestAddresses[_sender].length; i++){
+            if(chatRequestAddresses[_sender][i] == msg.sender){
+                break;
+            }
+        }
+
+        chatRequestAddresses[_sender][i] = chatRequestAddresses[_sender][chatRequestAddresses[_sender].length - 1];
+        chatRequestAddresses[_sender].pop();
 
     }
 
