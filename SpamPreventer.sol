@@ -55,7 +55,7 @@ contract SpamPreventer{
         conversationGraph[msg.sender][_receiver].spam = false;
         conversationGraph[msg.sender][_receiver].processed = false;
 
-        chatRequestAddresses[msg.sender].push(_receiver);
+        chatRequestAddresses[msg.sender].push(_receiver);// Add timestamp.
 
         // Add event transfered happened.
     }
@@ -84,6 +84,17 @@ contract SpamPreventer{
         conversationGraph[msg.sender][_sender].processed = true;
 
         spamAddresses[msg.sender].push(_sender);
+
+        uint256 i = 0;
+        
+        for(i=0; i<chatRequestAddresses[_sender].length; i++){
+            if(chatRequestAddresses[_sender][i] == msg.sender){
+                break;
+            }
+        }
+
+        chatRequestAddresses[_sender][i] = chatRequestAddresses[_sender][chatRequestAddresses[_sender].length - 1];
+        chatRequestAddresses[_sender].pop();
     }
 
     function canSendMessage(address _receiver) external view returns(bool status){
@@ -137,17 +148,6 @@ contract SpamPreventer{
 
         spamAddresses[msg.sender][i] = spamAddresses[msg.sender][spamAddresses[msg.sender].length-1];
         spamAddresses[msg.sender].pop();
-
-        i = 0;
-        
-        for(i=0; i<chatRequestAddresses[_sender].length; i++){
-            if(chatRequestAddresses[_sender][i] == msg.sender){
-                break;
-            }
-        }
-
-        chatRequestAddresses[_sender][i] = chatRequestAddresses[_sender][chatRequestAddresses[_sender].length - 1];
-        chatRequestAddresses[_sender].pop();
 
     }
 
