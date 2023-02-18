@@ -1,0 +1,53 @@
+SecChat
+
+
+A messaging dapp which gets the user **paid** each time he receives a spam, and creates such an environment for the **spammers** that they can’t survive on the dapp, making it spam free.
+
+
+Try - https://chat-web3.web.app/
+We all use messaging apps in this world, and to be honest, we all would have received some messages like hey you’re a winner of the **lucky draw**, you are going to be a **millionaire**, share your bank details and credentials and we will transfer this **huge loads of money** to your account. All such messages are spams. **Spam** not only causes huge losses to businesses but individuals too. There is not a single messaging app that promotes such an environment to remain **spam-free**. 
+By our dapp we are creating such an **incentive model** that it becomes impossible for the spammers to survive on the dapp while rewarding the receivers to get paid on receiving spam at worst.
+- Working - 
+>1.  Sender needs to stake 0.1T, it gets locked at the contract, and he gets access to send messages to the receiver.
+    >2.  Now he writes the message to the receiver which goes as a request to the receiver.
+    >3.  Receiver has 2 options either to declare it as spam or to approve it,
+    >4.  Let’s suppose he declares it as spam, the amount the spammer staked goes from the contract to the receiver. For spam, the receiver gets rewarded.
+    >5.  Now to penalize the spammer, the SpamCount of the sender increments, and the amount staked gets multiplied by SpamCount, it also increases to 0.2T, so now next time the spammer wants to request a message he needs to stake 0.2T, and it keeps on increasing as he keeps on spamming more and more.
+
+
+> - Push SDK was very unpredictable, as it is in Alpha it keeps getting changed a lot and it resulted in unknown bugs which we need to handle carefully.
+
+> - There was a corner case of the sender staking the amount and the receiver not responding to the request as spam or approving it, then to prevent the stake amount from being locked indefinitely, we implemented chain link automation which refunds all the staked amount locked in the contract every 24h.
+
+> - There could be another scenario of the receiver being a spammer, and it keeps on declaring all the message requests as spam and earning the staked amount. To tackle it we have added a counter which counts the number of spam a user has declared others, and if this count is greater than 10, then we prompt the sender that, the receiver to whom you are sending the request has a bad history of declaring others as spam, and you may loose your staked amount. So be cautious to proceed. After this, it is the sender’s obligation to decide and act wisely.
+
+> - We had one more feature of getting a notification that a message request on another network is present, but for that, we need to call some functions of a contract that is deployed on some network other than on which the user has logged in the SecChat. Till now we haven't been able to solve this issue.
+
+> - At time it became difficult to sort the messages into requests and spam as there is no flags in the push chat sdk, so we implemented separate structures in the contract to handle and sort into respective categories.
+
+
+https://www.youtube.com/watch?v=0eZuTIME7lE&ab_channel=RagibHussain
+
+
+The contract is deployed here over the filecoin hyperspace testnet - https://explorer.glif.io/address/0xD2D8019dC3D7D4258b9e53BFACFbe8517c47c79e/?network=hyperspace
+
+The contract works as the core of the dapp. As all the messaging states like amount staking, spam addresses, user information, amount refund etc are all managed by the contract. This contract is deployed on the FEVM, which fuels the core of the system. We chose filecoin as it is the upcoming chain with ipfs system, and since the push SDK stores all the messages on IPFS, we have future plans to use the filecoin ipfs on top of fevm to make the dapp more scalable.
+
+
+There is a scenario in the design - 
+If a sender has staked the amount and sent a request to the receiver, but the receiver doesn't give any response to the sender. He does not exercise any option neither approve him nor declare him spam. Then in those scenarios, the funds remain locked indefinitely. Therefore to clear this we used the chainlink automation upkeep tool to refund all such locked amounts back to the sender on every 24h.
+
+
+The whole dapp is using the PushChat SDK at its core. All the messages as requests and conversations are running on the PushChat prod environment. We have replicated the entire PushChat functionality with adding spam protection on top making it more feature rich.
+
+One such instance of importing push - https://github.com/ragib70/sec-chat/blob/c7db161b4111004321591033120597142c7b3373/src/components/People/AddPeople.tsx#L3
+
+
+The Mantle testnet deployed address - https://explorer.testnet.mantle.xyz/address/0x0e9dF147be69EfA819d5d3C6859B3b4d34a7CbA0
+
+Since it is a chatting application, we needed a fast layer 2 scalability solution, so the transactions are fast and don't struggle in transaction confirmation, to give a smooth UI experience. The contract deployed on the mantle testnet, forms the core of the system as it is used to maintain the entire state of the dapp like spammers info, SPCount, etc.
+
+
+The contract deployed address is - https://mumbai.polygonscan.com/address/0x4E6724E99083Cd5bC6b566FbEB15C72f748463fe
+
+The contract works at the core of the dapp. As all the messaging states like amount staking, spam addresses, user information, amount refund, etc are all managed by the contract. This contract is deployed on the Mumbai network, which fuels the core of the system. We chose Mumbai because it is the most reliable testnet network out there, and also our next step is to use polygon id to allow only verified users to the board in.
