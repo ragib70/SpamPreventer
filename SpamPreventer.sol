@@ -24,11 +24,20 @@ contract SpamPreventer{
         bool processed;
     }
 
+    struct requestMember{
+        uint256 amountDeposited;
+        uint256 timestamp;
+        address sender;
+        address receiver;
+    }
+
     uint256 public baseSPAmount;
     mapping (address => mapping(address => receiver)) public conversationGraph;
     mapping (address => Counters.Counter) public spCounter;
     mapping (address => address[]) public spamAddresses;
-    mapping (address => address[]) public chatRequestAddresses;
+    mapping (address => address[]) public senderChatRequestAddresses;
+    mapping (address => address[]) public receiversChatRequestAddresses;
+    requestMember[] public requestStack;
 
     // Constructor.
     constructor(uint256 amount) {// 1e16 = 0.01 matic
@@ -40,8 +49,13 @@ contract SpamPreventer{
         return spamAddresses[msg.sender];
     }
 
+// getSenderChatRequestsAddresses.
     function getChatRequestAdresses() public view returns (address[] memory) {
-        return chatRequestAddresses[msg.sender];
+        return senderChatRequestAddresses[msg.sender];
+    }
+
+    function getReceiversChatRequestAdresses() public view returns (address[] memory) {
+        return receiversChatRequestAddresses[msg.sender];
     }
 
     // Functions
@@ -55,9 +69,57 @@ contract SpamPreventer{
         conversationGraph[msg.sender][_receiver].spam = false;
         conversationGraph[msg.sender][_receiver].processed = false;
 
-        chatRequestAddresses[msg.sender].push(_receiver);// Add timestamp.
+        senderChatRequestAddresses[msg.sender].push(_receiver);// Add timestamp.
+        receiversChatRequestAddresses[_receiver].push(msg.sender);
 
+        requestMember memory member;
+        member.amountDeposited = msg.value;
+        member.timestamp = block.timestamp;
+        member.sender = msg.sender;
+        member.receiver = _receiver;
+
+        requestStack.push(member);
         // Add event transfered happened.
+    }
+
+    function returnRefund24() external{
+        // Check for unprocessed request first.
+        
+        for(uint256 i=0; i<requestStack.length;){
+            bool mark = false;
+            for(uint256 j=0; j<senderChatRequestAddresses[requestStack[i].sender].length; j++){
+                if(senderChatRequestAddresses[requestStack[i].sender][j] == requestStack[i].receiver && (block.timestamp - requestStack[i].timestamp) >= 86400){
+                    // Process.
+                    // Send eth back to sender from contract.
+                    mark  = true;
+                    (bool success, ) = requestStack[i].sender.call{value: requestStack[i].amountDeposited}("");
+                    require(success, "Failed to send Ether");
+
+                    senderChatRequestAddresses[requestStack[i].sender][j] = senderChatRequestAddresses[requestStack[i].sender][senderChatRequestAddresses[requestStack[i].sender].length - 1];
+                    senderChatRequestAddresses[requestStack[i].sender].pop();
+
+                    uint256 k=0;
+
+                    for(k=0; k<receiversChatRequestAddresses[requestStack[i].receiver].length; k++){
+                        if(receiversChatRequestAddresses[requestStack[i].receiver][k] == requestStack[i].sender){
+                            break;
+                        }
+                    }
+
+                    receiversChatRequestAddresses[requestStack[i].receiver][k] = receiversChatRequestAddresses[requestStack[i].receiver][receiversChatRequestAddresses[requestStack[i].receiver].length - 1];
+                    receiversChatRequestAddresses[requestStack[i].receiver].pop();
+
+                    requestStack[i] = requestStack[requestStack.length - 1];
+                    requestStack.pop();
+                    break;
+
+                }
+            }
+            if(!mark){
+                i++;
+            }
+        }
+
     }
 
     function getSPAmount() external view returns(uint256 senderSPAmount) {
@@ -87,14 +149,26 @@ contract SpamPreventer{
 
         uint256 i = 0;
         
-        for(i=0; i<chatRequestAddresses[_sender].length; i++){
-            if(chatRequestAddresses[_sender][i] == msg.sender){
+        for(i=0; i<senderChatRequestAddresses[_sender].length; i++){
+            if(senderChatRequestAddresses[_sender][i] == msg.sender){
                 break;
             }
         }
 
-        chatRequestAddresses[_sender][i] = chatRequestAddresses[_sender][chatRequestAddresses[_sender].length - 1];
-        chatRequestAddresses[_sender].pop();
+        senderChatRequestAddresses[_sender][i] = senderChatRequestAddresses[_sender][senderChatRequestAddresses[_sender].length - 1];
+        senderChatRequestAddresses[_sender].pop();
+
+        // Remove sender from the receivers request map.
+        i = 0;
+        
+        for(i=0; i<receiversChatRequestAddresses[msg.sender].length; i++){
+            if(receiversChatRequestAddresses[msg.sender][i] == _sender){
+                break;
+            }
+        }
+
+        receiversChatRequestAddresses[msg.sender][i] = receiversChatRequestAddresses[msg.sender][receiversChatRequestAddresses[msg.sender].length - 1];
+        receiversChatRequestAddresses[msg.sender].pop();
     }
 
     function canSendMessage(address _receiver) external view returns(bool status){
@@ -116,14 +190,26 @@ contract SpamPreventer{
 
         uint256 i = 0;
         
-        for(i=0; i<chatRequestAddresses[_sender].length; i++){
-            if(chatRequestAddresses[_sender][i] == msg.sender){
+        for(i=0; i<senderChatRequestAddresses[_sender].length; i++){
+            if(senderChatRequestAddresses[_sender][i] == msg.sender){
                 break;
             }
         }
 
-        chatRequestAddresses[_sender][i] = chatRequestAddresses[_sender][chatRequestAddresses[_sender].length - 1];
-        chatRequestAddresses[_sender].pop();
+        senderChatRequestAddresses[_sender][i] = senderChatRequestAddresses[_sender][senderChatRequestAddresses[_sender].length - 1];
+        senderChatRequestAddresses[_sender].pop();
+
+        // Remove sender from the receivers request map.
+        i = 0;
+        
+        for(i=0; i<receiversChatRequestAddresses[msg.sender].length; i++){
+            if(receiversChatRequestAddresses[msg.sender][i] == _sender){
+                break;
+            }
+        }
+
+        receiversChatRequestAddresses[msg.sender][i] = receiversChatRequestAddresses[msg.sender][receiversChatRequestAddresses[msg.sender].length - 1];
+        receiversChatRequestAddresses[msg.sender].pop();
     }
 
     function undeclareSpam(address payable _sender) external payable{// Called by receiver
